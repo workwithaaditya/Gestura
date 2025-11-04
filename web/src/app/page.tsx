@@ -205,20 +205,43 @@ export default function Home() {
     const scene = sceneRef.current;
     const mesh = meshRef.current;
     
-    // Remove old mesh
+    // Remove old mesh/group and dispose resources
     if (mesh) {
       scene.remove(mesh);
-      if (mesh instanceof THREE.Mesh) {
-        mesh.geometry.dispose();
-        if (Array.isArray(mesh.material)) {
-          mesh.material.forEach((m: THREE.Material) => m.dispose());
-        } else {
-          mesh.material.dispose();
-        }
-      }
+      const disposeMesh = (m: THREE.Object3D) => {
+        m.traverse((obj) => {
+          const asMesh = obj as THREE.Mesh;
+          if ((asMesh as any).geometry) {
+            (asMesh as any).geometry.dispose?.();
+          }
+          if ((asMesh as any).material) {
+            const mat = (asMesh as any).material as THREE.Material | THREE.Material[];
+            if (Array.isArray(mat)) mat.forEach((mm) => mm.dispose?.());
+            else mat.dispose?.();
+          }
+        });
+      };
+      disposeMesh(mesh);
     }
     
     let newMesh: THREE.Mesh | THREE.Group;
+    const texLoader = new THREE.TextureLoader();
+    const tryLoad = (url: string, onOk: (t: THREE.Texture) => void) => {
+      try {
+        texLoader.load(
+          url,
+          (t) => {
+            t.wrapS = THREE.RepeatWrapping;
+            t.wrapT = THREE.RepeatWrapping;
+            onOk(t);
+          },
+          undefined,
+          () => {
+            // ignore if missing
+          }
+        );
+      } catch (_) {/* noop */}
+    };
     
     if (objectType === 'custom') {
       // Load custom 3D model (example: glTF file)
@@ -245,30 +268,103 @@ export default function Home() {
       return;
     }
     
-    // Built-in shapes
-    let geometry: THREE.BufferGeometry;
+    // Built-in shapes with nicer looks/textures
     if (objectType === 'sphere') {
-      geometry = new THREE.SphereGeometry(1, 64, 64);
+      // Earth
+      const geometry = new THREE.SphereGeometry(1, 64, 64);
+      const material = new THREE.MeshStandardMaterial({ color: 0x2266aa, roughness: 0.8, metalness: 0.0 });
+      newMesh = new THREE.Mesh(geometry, material);
+      // Try to load textures if present
+      tryLoad('/textures/earth_daymap.jpg', (t) => {
+        material.map = t; material.needsUpdate = true;
+      });
+      tryLoad('/textures/earth_normal.jpg', (t) => {
+        material.normalMap = t; material.needsUpdate = true;
+      });
+      tryLoad('/textures/earth_specular.jpg', (t) => {
+        material.metalnessMap = t; material.metalness = 0.2; material.needsUpdate = true;
+      });
+      scene.add(newMesh);
+      meshRef.current = newMesh;
     } else if (objectType === 'cube') {
-      geometry = new THREE.BoxGeometry(2, 2, 2);
+      // Crate-like cube
+      const geometry = new THREE.BoxGeometry(2, 2, 2);
+      const material = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.9, metalness: 0.05 });
+      newMesh = new THREE.Mesh(geometry, material);
+      tryLoad('/textures/crate_diffuse.jpg', (t) => { material.map = t; material.needsUpdate = true; });
+      tryLoad('/textures/crate_normal.jpg', (t) => { material.normalMap = t; material.needsUpdate = true; });
+      scene.add(newMesh);
+      meshRef.current = newMesh;
     } else if (objectType === 'torus') {
-      geometry = new THREE.TorusGeometry(1, 0.4, 32, 64);
+      // Donut with icing and sprinkles
+      const group = new THREE.Group();
+      // Dough
+      const doughGeo = new THREE.TorusGeometry(1, 0.4, 32, 96);
+      const doughMat = new THREE.MeshStandardMaterial({ color: 0xC68642, roughness: 0.8, metalness: 0.05 });
+      const doughMesh = new THREE.Mesh(doughGeo, doughMat);
+      group.add(doughMesh);
+      // Icing (slightly larger radius, smaller thickness, lifted up a bit)
+      const icingGeo = new THREE.TorusGeometry(1.02, 0.28, 32, 96);
+      const icingMat = new THREE.MeshStandardMaterial({ color: 0xFFC0CB, roughness: 0.6, metalness: 0.1 });
+      const icingMesh = new THREE.Mesh(icingGeo, icingMat);
+      icingMesh.position.y = 0.08;
+      group.add(icingMesh);
+      // Sprinkles
+      const sprinkleColors = [0xff4d4f, 0x40c463, 0x36cfc9, 0xffe58f, 0x597ef7, 0xff85c0];
+      const R = 1.0, r = 0.28;
+      for (let i = 0; i < 120; i++) {
+        const u = Math.random() * Math.PI * 2;
+        const v = (Math.random() - 0.5) * Math.PI * 0.9; // concentrate on top
+        const x = (R + r * Math.cos(v)) * Math.cos(u);
+        const y = (R + r * Math.cos(v)) * Math.sin(u);
+        const z = r * Math.sin(v) + 0.1;
+        const geom = new THREE.BoxGeometry(0.06, 0.02, 0.02);
+        const mat = new THREE.MeshStandardMaterial({ color: sprinkleColors[(Math.random() * sprinkleColors.length) | 0], roughness: 0.5 });
+        const m = new THREE.Mesh(geom, mat);
+        m.position.set(x, y, z);
+        m.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+        group.add(m);
+      }
+      scene.add(group);
+      meshRef.current = group;
     } else if (objectType === 'cone') {
-      geometry = new THREE.ConeGeometry(1, 2, 32);
+      // Ice cream cone: cone + scoop sphere
+      const group = new THREE.Group();
+      // Cone
+      const coneGeo = new THREE.ConeGeometry(0.9, 2, 48);
+      const coneMat = new THREE.MeshStandardMaterial({ color: 0xD2A679, roughness: 0.9, metalness: 0.05 });
+      const coneMesh = new THREE.Mesh(coneGeo, coneMat);
+      group.add(coneMesh);
+      tryLoad('/textures/waffle.jpg', (t) => { coneMat.map = t; coneMat.needsUpdate = true; t.repeat.set(2, 4); });
+      // Scoop
+      const scoopGeo = new THREE.SphereGeometry(0.9, 48, 48);
+      const scoopMat = new THREE.MeshStandardMaterial({ color: 0xE6F7FF, roughness: 0.7, metalness: 0.05 });
+      const scoopMesh = new THREE.Mesh(scoopGeo, scoopMat);
+      scoopMesh.position.y = 1.0; // sit on top
+      group.add(scoopMesh);
+      scene.add(group);
+      meshRef.current = group;
     } else {
-      geometry = new THREE.SphereGeometry(1, 64, 64);
+      // Fallback sphere
+      const geometry = new THREE.SphereGeometry(1, 64, 64);
+      const material = new THREE.MeshStandardMaterial({ color: 0x66a3ff, metalness: 0.3, roughness: 0.4 });
+      newMesh = new THREE.Mesh(geometry, material);
+      scene.add(newMesh);
+      meshRef.current = newMesh;
     }
-    
-    const material = new THREE.MeshStandardMaterial({ 
-      color: 0x66a3ff,
-      metalness: 0.3,
-      roughness: 0.4,
-    });
-    
-    newMesh = new THREE.Mesh(geometry, material);
-    scene.add(newMesh);
-    meshRef.current = newMesh;
   }, [objectType]);
+
+  // Friendly label for object
+  const objectLabel = (t: ObjectType): string => {
+    switch (t) {
+      case 'sphere': return 'EARTH';
+      case 'cube': return 'CRATE';
+      case 'torus': return 'DONUT';
+      case 'cone': return 'ICE CREAM';
+      case 'custom': return 'CUSTOM MODEL';
+    }
+    return (t as string).toUpperCase();
+  };
 
   function drawHandLandmarks(result: GestureRecognizerResult | undefined) {
     const canvas = overlayCanvasRef.current;
@@ -526,7 +622,7 @@ export default function Home() {
             marginTop: '12px',
           }}>
             <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', opacity: 0.7 }}>
-              CURRENT STATE
+              STATUS
             </div>
             
             {/* Rotation Status */}
@@ -554,7 +650,7 @@ export default function Home() {
                 borderRadius: '4px',
                 fontSize: '12px',
               }}>
-                {objectType.toUpperCase()}
+                {objectLabel(objectType)}
               </span>
             </div>
 
@@ -575,7 +671,7 @@ export default function Home() {
                 <div style={{ 
                   width: `${(rotationSpeed / 0.1) * 100}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, #4CAF50, #2196F3)',
+                  background: 'linear-gradient(90deg, #FF6B6B, #4ECDC4)',
                   transition: 'width 0.3s ease',
                 }} />
               </div>
