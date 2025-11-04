@@ -28,26 +28,73 @@ A computer vision application that allows users to manipulate 3D objects in real
 
 ## Installation
 
-1. Clone the repository:
+1) Clone the repository:
 ```bash
 git clone https://github.com/yourusername/3d-gesture-control.git
 cd 3d-gesture-control
 ```
 
-2. Install required packages:
-```bash
-pip install -r requirements.txt
+2) (Recommended) Create and activate a virtual environment, then install dependencies:
+
+Windows PowerShell
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r .\requirements.txt
 ```
 
-3. Download the MediaPipe gesture recognizer model:
-   - You'll need to obtain the `gesture_recognizer.task` file and place it in the project directory
-   - See [MediaPipe documentation](https://developers.google.com/mediapipe/solutions/vision/gesture_recognizer) for more details
+macOS/Linux
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+3) Download the MediaPipe gesture recognizer model:
+   - Obtain the `gesture_recognizer.task` file from the official docs: [MediaPipe Gesture Recognizer](https://developers.google.com/mediapipe/solutions/vision/gesture_recognizer)
+   - Default expected path (recommended):
+     ```
+     assets/models/gesture_recognizer.task
+     ```
+   - Alternatively, keep it anywhere and set the environment variable `GESTURE_MODEL_PATH` to point to it.
+     
+     Windows PowerShell
+     ```powershell
+     $env:GESTURE_MODEL_PATH = "C:\\full\\path\\to\\gesture_recognizer.task"
+     ```
+     macOS/Linux
+     ```bash
+     export GESTURE_MODEL_PATH="/full/path/to/gesture_recognizer.task"
+     ```
 
 ## Usage
 
 Run the main application:
+
+Windows PowerShell
+```powershell
+python .\3d-gesture-control.py
+```
+
+macOS/Linux
 ```bash
-python 3d-gesture-control.py
+python3 3d-gesture-control.py
+```
+
+### One-command setup and run (Windows)
+
+From the project folder:
+
+```powershell
+# Setup venv, install requirements, and ensure model folder exists
+powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
+
+# Run (optionally pass a model path override)
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
+# or
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1 -ModelPath "C:\\full\\path\\to\\gesture_recognizer.task"
 ```
 
 ### Controls
@@ -70,7 +117,29 @@ python 3d-gesture-control.py
 - `create_object.py`: Contains functions for creating 3D objects
 - `projection.py`: Handles 3D to 2D projection and rotation
 - `requirements.txt`: List of required packages
+- `assets/models/`: Place `gesture_recognizer.task` here by default
+- `tests/`: Pytest unit tests
 - `docs/`: Documentation and usage guides
+- `scripts/`: Windows PowerShell helpers for setup and running
+
+## Deployment options
+
+- Local (recommended):
+  - Use `scripts/setup.ps1` and `scripts/run.ps1` on Windows for a quick start, or follow the manual venv steps above on any OS.
+
+- Single-file executable (Windows, optional):
+  - Install PyInstaller into the venv and build:
+    ```powershell
+    .\.venv\Scripts\Activate.ps1
+    python -m pip install pyinstaller
+    pyinstaller --onefile --name 3d-gesture-control `
+      --add-data "assets\models\gesture_recognizer.task;assets\models" `
+      3d-gesture-control.py
+    ```
+  - Distribute `dist\3d-gesture-control.exe` along with camera permissions. Note: packaging MediaPipe/Open3D can increase size; Möbius mesh downloads at first run.
+
+- Docker (not recommended for GUI+webcam):
+  - This app requires webcam and a GUI window, which complicates Docker on Windows. Prefer local install.
 
 ## How It Works
 
