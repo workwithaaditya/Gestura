@@ -510,10 +510,6 @@ export default function Home() {
               <span style={{ opacity: 0.9 }}>Victory → Switch object</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '18px', marginRight: '8px' }}>☝️</span>
-              <span style={{ opacity: 0.9 }}>Pointing Up → Change axis</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ fontSize: '18px', marginRight: '8px' }}>👍</span>
               <span style={{ opacity: 0.9 }}>Thumbs Up → Speed up</span>
             </div>
