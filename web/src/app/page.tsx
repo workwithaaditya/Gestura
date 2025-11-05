@@ -34,6 +34,7 @@ export default function Home() {
   // Use refs for rotation state so loop always reads latest values
   const rotationActiveRef = useRef(true); // Initialize to true to match state
   const rotationSpeedRef = useRef(0.02); // Initialize to match state
+  const rotationDirRef = useRef(0); // 1 = forward (palm), -1 = reverse (fist), 0 = stop
 
   const gestureCooldownRef = useRef(0);
   const gestureHoldFramesRef = useRef(0);
@@ -174,9 +175,9 @@ export default function Home() {
             console.log('🛟 Fallback mesh created');
           }
 
-          // Rotation - use refs to get latest values - rotate on all 3 axes for better effect
-          if (rotationActiveRef.current && meshRef.current) {
-            const speed = rotationSpeedRef.current;
+          // Rotation - use refs to get latest values with direction
+          if (meshRef.current && rotationDirRef.current !== 0) {
+            const speed = rotationSpeedRef.current * rotationDirRef.current;
             meshRef.current.rotation.x += speed * 0.5;
             meshRef.current.rotation.y += speed;
             meshRef.current.rotation.z += speed * 0.3;
@@ -408,8 +409,10 @@ export default function Home() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw hand landmarks if detected
-    if (result && result.landmarks && result.landmarks.length > 0) {
-      for (const landmarks of result.landmarks) {
+    const anyResult = result as any;
+    const groups: any[] = anyResult?.landmarks ?? anyResult?.handLandmarks ?? [];
+    if (groups && groups.length > 0) {
+      for (const landmarks of groups) {
         // Draw connections (skeleton)
         ctx.strokeStyle = '#00FF00';
         ctx.lineWidth = 2;
@@ -445,6 +448,11 @@ export default function Home() {
           ctx.fill();
         }
       }
+    } else {
+      // Optional: debug low-frequency log if landmarks missing
+      if (Math.random() < 0.01) {
+        console.log('ℹ️ No hand landmarks in result');
+      }
     }
   }
 
@@ -472,16 +480,15 @@ export default function Home() {
       }
     }
 
-    // Drive rotation state directly from current gesture
-    // Open palm => rotate ON; Closed fist or anything else (or no detection) => rotate OFF
-    const desiredActive = currentGesture === 'Open_Palm' ? true : false;
-    if (currentGesture === 'Closed_Fist') {
-      // Explicit stop
-      if (rotationActiveRef.current !== false) {
-        setRotationActive(false);
-      }
-    } else if (rotationActiveRef.current !== desiredActive) {
-      setRotationActive(desiredActive);
+    // Drive rotation direction from gesture
+    // Open Palm => forward (dir=1); Closed Fist => reverse (dir=-1); otherwise stop (dir=0)
+    let dir = 0;
+    if (currentGesture === 'Open_Palm') dir = 1;
+    else if (currentGesture === 'Closed_Fist') dir = -1;
+
+    if (rotationDirRef.current !== dir) {
+      rotationDirRef.current = dir;
+      setRotationActive(dir !== 0);
     }
 
     if (currentGesture && currentGesture === lastGestureNameRef.current) {
