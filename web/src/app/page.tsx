@@ -636,11 +636,11 @@ export default function Home() {
           <div style={{ marginBottom: '16px', lineHeight: '1.8' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ fontSize: '18px', marginRight: '8px' }}>✋</span>
-              <span style={{ opacity: 0.9 }}>Open Palm → Rotate</span>
+              <span style={{ opacity: 0.9 }}>Open Palm → Rotate Forward</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ fontSize: '18px', marginRight: '8px' }}>✊</span>
-              <span style={{ opacity: 0.9 }}>Closed Fist → Stop</span>
+              <span style={{ opacity: 0.9 }}>Closed Fist → Rotate Reverse</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ fontSize: '18px', marginRight: '8px' }}>✌️</span>
