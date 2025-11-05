@@ -115,9 +115,10 @@ export default function Home() {
         camera.position.z = 5;
         cameraThreeRef.current = camera;
 
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  renderer.setClearColor(0x000000, 0); // transparent but explicit
         rendererRef.current = renderer;
 
         // Initial object (sphere) with better 3D material
@@ -139,7 +140,20 @@ export default function Home() {
         dirLight.position.set(2, 2, 2);
         scene.add(dirLight);
 
+        // Handle resize
+        const handleResize = () => {
+          if (!rendererRef.current || !cameraThreeRef.current) return;
+          const w = canvas.clientWidth;
+          const h = canvas.clientHeight;
+          rendererRef.current.setSize(w, h);
+          cameraThreeRef.current.aspect = w / h;
+          cameraThreeRef.current.updateProjectionMatrix();
+        };
+        window.addEventListener('resize', handleResize);
+        handleResize();
+
         // 4) Animation loop
+        const fallbackCreated = { current: false };
         const loop = () => {
           // Gesture recognition
           if (recognizerRef.current && video && video.readyState >= 2) {
@@ -147,6 +161,17 @@ export default function Home() {
             const result = recognizerRef.current.recognizeForVideo(video, now);
             processGestures(result);
             drawHandLandmarks(result);
+          }
+
+          // Ensure we have a mesh to render (safety)
+          if (!meshRef.current && sceneRef.current && !fallbackCreated.current) {
+            const geometry = new THREE.SphereGeometry(1, 64, 64);
+            const material = new THREE.MeshStandardMaterial({ color: 0x66a3ff, metalness: 0.3, roughness: 0.4 });
+            const m = new THREE.Mesh(geometry, material);
+            sceneRef.current.add(m);
+            meshRef.current = m;
+            fallbackCreated.current = true;
+            console.log('🛟 Fallback mesh created');
           }
 
           // Rotation - use refs to get latest values - rotate on all 3 axes for better effect
@@ -190,6 +215,11 @@ export default function Home() {
       if (rendererRef.current) {
         rendererRef.current.dispose();
       }
+      // remove resize listener
+      try {
+        // @ts-ignore - handleResize in closure
+        window.removeEventListener('resize', handleResize as any);
+      } catch {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
