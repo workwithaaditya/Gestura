@@ -17,7 +17,7 @@ export default function Home() {
   const [loadingStatus, setLoadingStatus] = useState<string>('Initializing...');
 
   // Gesture state
-  const [rotationActive, setRotationActive] = useState(true); // Start with rotation ON
+  const [rotationActive, setRotationActive] = useState(false); // Rotate only when palm is open
   const [rotationSpeed, setRotationSpeed] = useState(0.02);
   const [objectType, setObjectType] = useState<ObjectType>('sphere');
   const [lastGesture, setLastGesture] = useState<string | null>(null);
@@ -442,6 +442,18 @@ export default function Home() {
       }
     }
 
+    // Drive rotation state directly from current gesture
+    // Open palm => rotate ON; Closed fist or anything else (or no detection) => rotate OFF
+    const desiredActive = currentGesture === 'Open_Palm' ? true : false;
+    if (currentGesture === 'Closed_Fist') {
+      // Explicit stop
+      if (rotationActiveRef.current !== false) {
+        setRotationActive(false);
+      }
+    } else if (rotationActiveRef.current !== desiredActive) {
+      setRotationActive(desiredActive);
+    }
+
     if (currentGesture && currentGesture === lastGestureNameRef.current) {
       gestureHoldFramesRef.current++;
     } else {
@@ -461,18 +473,10 @@ export default function Home() {
   function handleGestureAction(gesture: string) {
     switch (gesture) {
       case 'Open_Palm':
-        // Reset rotations
-        if (meshRef.current) {
-          meshRef.current.rotation.set(0, 0, 0);
-        }
-        console.log('✋ ACTION: Reset rotations');
+        // Rotation is handled continuously in processGestures
         break;
       case 'Closed_Fist':
-        setRotationActive((prev) => {
-          const newState = !prev;
-          console.log(`✊ ACTION: Rotation ${newState ? 'ON' : 'OFF'}`);
-          return newState;
-        });
+        // Stop rotation is handled in processGestures
         break;
       case 'Victory':
         // Cycle through objects: sphere → cube → torus → cone → custom → sphere
@@ -595,11 +599,11 @@ export default function Home() {
           <div style={{ marginBottom: '16px', lineHeight: '1.8' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ fontSize: '18px', marginRight: '8px' }}>✋</span>
-              <span style={{ opacity: 0.9 }}>Open Palm → Reset rotation</span>
+              <span style={{ opacity: 0.9 }}>Open Palm → Rotate</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ fontSize: '18px', marginRight: '8px' }}>✊</span>
-              <span style={{ opacity: 0.9 }}>Closed Fist → Toggle ON/OFF</span>
+              <span style={{ opacity: 0.9 }}>Closed Fist → Stop</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
               <span style={{ fontSize: '18px', marginRight: '8px' }}>✌️</span>
