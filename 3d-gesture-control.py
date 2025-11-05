@@ -12,6 +12,49 @@ import create_object
 import projection
 
 
+def draw_help_overlay(frame, rotation_active, rotation_speed, active_axis, last_gesture):
+    """Draw a compact, semi-transparent help overlay with key gestures and current state."""
+    try:
+        overlay = frame.copy()
+        h, w = frame.shape[:2]
+        box_w = min(420, int(w * 0.6))
+        box_h = 200
+        x0, y0 = 10, 10
+        x1, y1 = x0 + box_w, y0 + box_h
+
+        # Background rectangle (filled) on overlay
+        cv2.rectangle(overlay, (x0, y0), (x1, y1), (0, 0, 0), thickness=-1)
+        # Blend overlay
+        alpha = 0.35
+        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+        # Text lines
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.45
+        color = (255, 255, 255)
+        line_h = 18
+        pad = 8
+        y = y0 + pad + 5
+
+        lines = [
+            "Gesture Help (ESC to exit)",
+            "Open_Palm: Reset | Closed_Fist: Toggle rotation",
+            "Victory: Switch object | Pointing_Up: Cycle X/Y/Z",
+            "Thumb_Up: Speed+ | Thumb_Down: Speed-",
+            "Right hand: Move | Pinch (left): Scale",
+        ]
+
+        state = f"State: rot={'ON' if rotation_active else 'OFF'} | speed={rotation_speed:.1f} | axis={'XYZ'[active_axis]} | last={last_gesture or '-'}"
+        lines.append(state)
+
+        for line in lines:
+            cv2.putText(frame, line, (x0 + pad, y), font, font_scale, color, 1, cv2.LINE_AA)
+            y += line_h
+    except Exception:
+        # Overlay is non-critical; ignore any drawing errors to avoid crashing the app
+        pass
+
+
 # Choose a colormap (e.g., 'viridis', 'plasma', 'coolwarm')
 colormap = cm.get_cmap('Blues')
 
@@ -23,7 +66,12 @@ drawing_styles = mp.solutions.drawing_styles
 
 
 # Initialize OpenCV Webcam
-cap = cv2.VideoCapture(0)
+camera_index = 0
+cap = cv2.VideoCapture(camera_index)
+if not cap.isOpened():
+    print(f"[Init][Error] Could not open camera at index {camera_index}.")
+    raise SystemExit(1)
+print(f"[Init] Camera index: {camera_index}")
 
 # Initial position and size of the object
 object_center = np.array([0, 0, 5])  # Positioned in front of the camera initially
@@ -52,7 +100,50 @@ active_axis = 0  # 0: X, 1: Y, 2: Z
 rotation_active = False
 last_gesture = None
 
-model_path = r'C:\Users\harsh\Python\Projects\three_d_projection\gesture_recognizer.task'
+# Resolve gesture model path with sensible defaults and overrides
+def _resolve_gesture_model_path() -> str:
+    """
+    Determine the gesture recognizer model path using the following precedence:
+    1) Environment variable GESTURE_MODEL_PATH (if file exists)
+    2) Default relative path: <repo>/assets/models/gesture_recognizer.task
+
+    Returns the path if found; raises FileNotFoundError otherwise with a helpful message.
+    """
+    # 1) Environment override
+    env_path = os.getenv("GESTURE_MODEL_PATH")
+    candidates = []
+    if env_path:
+        candidates.append(env_path)
+
+    # 2) Default relative path next to this file: assets/models/gesture_recognizer.task
+    default_rel = os.path.join(os.path.dirname(__file__), "assets", "models", "gesture_recognizer.task")
+    candidates.append(default_rel)
+
+    for p in candidates:
+        if p and os.path.isfile(p):
+            return p
+
+    # If nothing found, construct a clear message
+    msg_lines = [
+        "Gesture model file not found.",
+        "Tried paths:",
+    ] + [f" - {p}" for p in candidates] + [
+        "\nHow to fix:",
+        "1) Download the MediaPipe Gesture Recognizer model (gesture_recognizer.task)",
+        "2) Place it at: assets/models/gesture_recognizer.task (recommended)",
+        "   OR set an absolute path in the environment variable GESTURE_MODEL_PATH",
+        "   See README for details: https://developers.google.com/mediapipe/solutions/vision/gesture_recognizer",
+    ]
+    raise FileNotFoundError("\n".join(msg_lines))
+
+try:
+    model_path = _resolve_gesture_model_path()
+    print(f"[Init] Using gesture model: {model_path}")
+except FileNotFoundError as e:
+    # Print helpful guidance and exit gracefully
+    print(str(e))
+    # Ensure a non-zero exit so users notice the issue
+    raise SystemExit(1)
 
 # Initialize MediaPipe objects
 BaseOptions = python.BaseOptions
@@ -62,7 +153,7 @@ RunningMode = vision.RunningMode
 
 # Create gesture recognizer with absolute path
 options = GestureRecognizerOptions(
-    base_options = BaseOptions(model_asset_buffer=open(model_path, "rb").read()),
+    base_options=BaseOptions(model_asset_buffer=open(model_path, "rb").read()),
     running_mode=RunningMode.VIDEO,  # Use VIDEO mode for faster processing
     num_hands=2  # Detect up to 2 hands
 )
@@ -290,6 +381,9 @@ while cap.isOpened():
                     prev_pinch_distance = None  # Reset if hand tracking is unstable
 
 
+
+    # Draw help overlay (non-intrusive)
+    draw_help_overlay(image, rotation_active, rotation_speed, active_axis, last_gesture)
 
     cv2.imshow('MediaPipe Hands', image)
     if cv2.waitKey(5) & 0xFF == 27:
