@@ -1,11 +1,31 @@
-# 3D Object Manipulation with Hand Gestures
+# 🎮 Gestura - 3D Object Manipulation with Hand Gestures
 
-A computer vision application that allows users to manipulate 3D objects in real-time using hand gestures captured by a webcam.
+A real-time computer vision application that lets you control and manipulate 3D objects using hand gestures captured by your webcam. Built with MediaPipe and Three.js.
+
+🌐 **[Live Demo](https://gestura-o64z.vercel.app)** | 📹 **[Demo Video](assets/demo.gif)**
 
 ![Demo](assets/demo.gif)
 
-## Features
+## ✨ Features
 
+### Web Version (Next.js + Three.js)
+- 🌍 **Browser-based**: Works on any device with a camera
+- 🎨 **Themed 3D Objects**: 
+  - Earth sphere with optional textures
+  - Wooden crate cube
+  - Donut with icing and sprinkles
+  - Ice cream cone with scoop
+  - Custom model support (GLB/GLTF)
+- 🤚 **Gesture Controls**:
+  - ✋ Open Palm → Rotate forward
+  - ✊ Closed Fist → Rotate reverse
+  - ✌️ Victory → Switch objects
+  - 👍 Thumbs Up → Increase speed
+  - 👎 Thumbs Down → Decrease speed
+- 🎯 **Real-time hand tracking** with visual skeleton overlay
+- 📱 **Responsive design** with modern UI/UX
+
+### Desktop Version (Python)
 - **Real-time 3D object manipulation** using hand gestures
 - **Multiple object types**: Switch between cube and sphere
 - **Gesture controls**:
